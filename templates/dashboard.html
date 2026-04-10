@@ -1,0 +1,789 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SGSITS - Timetable Generator</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+        }
+        
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        
+        /* Header */
+        .header {
+            background: white;
+            border-radius: 15px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+        }
+        
+        .header h1 {
+            color: #333;
+            font-size: 28px;
+        }
+        
+        .header p {
+            color: #666;
+            margin-top: 5px;
+        }
+        
+        /* Tabs */
+        .tabs {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+        
+        .tab-btn {
+            background: rgba(255,255,255,0.2);
+            border: none;
+            padding: 12px 24px;
+            border-radius: 10px;
+            color: white;
+            font-size: 16px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        
+        .tab-btn.active {
+            background: white;
+            color: #667eea;
+        }
+        
+        .tab-btn:hover {
+            background: rgba(255,255,255,0.3);
+        }
+        
+        /* Panels */
+        .panel {
+            display: none;
+            background: white;
+            border-radius: 15px;
+            padding: 25px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+        }
+        
+        .panel.active {
+            display: block;
+        }
+        
+        /* Forms */
+        .form-group {
+            margin-bottom: 20px;
+        }
+        
+        label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #333;
+        }
+        
+        input, select, textarea {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 14px;
+            transition: border-color 0.3s;
+        }
+        
+        input:focus, select:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+        
+        button {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 8px;
+            font-size: 16px;
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+        
+        button:hover {
+            transform: translateY(-2px);
+        }
+        
+        /* Tables */
+        .data-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+        
+        .data-table th, .data-table td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid #e0e0e0;
+        }
+        
+        .data-table th {
+            background: #f5f5f5;
+            font-weight: 600;
+        }
+        
+        /* Timetable Table */
+        .timetable-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+            overflow-x: auto;
+            display: block;
+        }
+        
+        .timetable-table th, .timetable-table td {
+            border: 1px solid #ddd;
+            padding: 12px;
+            text-align: center;
+            vertical-align: top;
+            min-width: 100px;
+        }
+        
+        .timetable-table th {
+            background: #667eea;
+            color: white;
+            font-weight: 600;
+        }
+        
+        .timetable-table td {
+            background: #fafafa;
+        }
+        
+        .recess {
+            background: #ffe0b3;
+            font-weight: bold;
+        }
+        
+        /* Cards */
+        .cards-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+            margin-top: 20px;
+        }
+        
+        .card {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px;
+            border-radius: 15px;
+            cursor: pointer;
+            transition: transform 0.3s;
+        }
+        
+        .card:hover {
+            transform: translateY(-5px);
+        }
+        
+        .card h3 {
+            font-size: 24px;
+            margin-bottom: 10px;
+        }
+        
+        /* Grid layouts */
+        .form-row {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+        }
+        
+        .message {
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            display: none;
+        }
+        
+        .message.success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+            display: block;
+        }
+        
+        .message.error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+            display: block;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🏫 SGSITS Timetable Generator</h1>
+            <p>Shri Govindram Seksaria Institute of Technology and Science - Automatic Timetable Generation System</p>
+        </div>
+        
+        <!-- Tabs -->
+        <div class="tabs">
+            <button class="tab-btn active" onclick="showPanel('dashboard')">📊 Dashboard</button>
+            <button class="tab-btn" onclick="showPanel('add-teacher')">👨‍🏫 Add Teacher</button>
+            <button class="tab-btn" onclick="showPanel('add-subject')">📚 Add Subject</button>
+            <button class="tab-btn" onclick="showPanel('assign-subject')">🔗 Assign Subject</button>
+            <button class="tab-btn" onclick="showPanel('create-section')">📋 Create Section</button>
+            <button class="tab-btn" onclick="showPanel('generate-timetable')">⏰ Generate Timetable</button>
+            <button class="tab-btn" onclick="showPanel('view-timetable')">👁️ View Timetable</button>
+        </div>
+        
+        <!-- Dashboard Panel -->
+        <div id="dashboard" class="panel active">
+            <h2>🎓 Welcome to SGSITS Timetable Generator</h2>
+            <p>Manage teachers, subjects, sections, and generate automatic timetables for all engineering branches.</p>
+            
+            <div class="cards-grid">
+                <div class="card" onclick="showPanel('add-teacher')">
+                    <h3>👨‍🏫</h3>
+                    <p>Add Teachers</p>
+                </div>
+                <div class="card" onclick="showPanel('add-subject')">
+                    <h3>📚</h3>
+                    <p>Add Subjects</p>
+                </div>
+                <div class="card" onclick="showPanel('create-section')">
+                    <h3>📋</h3>
+                    <p>Create Sections</p>
+                </div>
+                <div class="card" onclick="showPanel('generate-timetable')">
+                    <h3>⏰</h3>
+                    <p>Generate Timetable</p>
+                </div>
+            </div>
+            
+            <h3 style="margin-top: 30px;">📊 Quick Stats</h3>
+            <div id="stats-container">
+                <p>Loading statistics...</p>
+            </div>
+        </div>
+        
+        <!-- Add Teacher Panel -->
+        <div id="add-teacher" class="panel">
+            <h2>👨‍🏫 Add New Teacher</h2>
+            <form id="teacherForm">
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Teacher Name *</label>
+                        <input type="text" id="teacherName" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Department *</label>
+                        <select id="teacherDept" required>
+                            <option value="">Select Department</option>
+                            <option value="CSE">Computer Science & Engineering</option>
+                            <option value="IT">Information Technology</option>
+                            <option value="ECE">Electronics & Communication</option>
+                            <option value="EE">Electrical Engineering</option>
+                            <option value="ME">Mechanical Engineering</option>
+                            <option value="CE">Civil Engineering</option>
+                            <option value="IPE">Industrial & Production</option>
+                            <option value="BM">Biomedical Engineering</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Email</label>
+                        <input type="email" id="teacherEmail">
+                    </div>
+                    <div class="form-group">
+                        <label>Max Hours/Day</label>
+                        <input type="number" id="teacherMaxHours" value="6" min="1" max="8">
+                    </div>
+                </div>
+                <button type="submit">➕ Add Teacher</button>
+            </form>
+            
+            <h3 style="margin-top: 30px;">📋 Existing Teachers</h3>
+            <div id="teachersList"></div>
+        </div>
+        
+        <!-- Add Subject Panel -->
+        <div id="add-subject" class="panel">
+            <h2>📚 Add New Subject</h2>
+            <form id="subjectForm">
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Subject Code *</label>
+                        <input type="text" id="subjectCode" required placeholder="e.g., CS301">
+                    </div>
+                    <div class="form-group">
+                        <label>Subject Name *</label>
+                        <input type="text" id="subjectName" required placeholder="e.g., Data Structures">
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Branch *</label>
+                        <select id="subjectBranch" required>
+                            <option value="">Select Branch</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Year *</label>
+                        <select id="subjectYear" required>
+                            <option value="1">1st Year</option>
+                            <option value="2">2nd Year</option>
+                            <option value="3">3rd Year</option>
+                            <option value="4">4th Year</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Semester</label>
+                        <select id="subjectSemester">
+                            <option value="1">Semester 1</option>
+                            <option value="2">Semester 2</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Credits</label>
+                        <input type="number" id="subjectCredits" value="3" min="1" max="6">
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Hours/Week</label>
+                        <input type="number" id="subjectHours" value="3" min="1" max="6">
+                    </div>
+                    <div class="form-group">
+                        <label>
+                            <input type="checkbox" id="subjectIsLab"> Is Lab Course?
+                        </label>
+                    </div>
+                </div>
+                <button type="submit">➕ Add Subject</button>
+            </form>
+            
+            <h3 style="margin-top: 30px;">📚 Existing Subjects</h3>
+            <div id="subjectsList"></div>
+        </div>
+        
+        <!-- Assign Subject Panel -->
+        <div id="assign-subject" class="panel">
+            <h2>🔗 Assign Subject to Teacher & Section</h2>
+            <form id="assignForm">
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Branch *</label>
+                        <select id="assignBranch" required>
+                            <option value="">Select Branch</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Year *</label>
+                        <select id="assignYear" required>
+                            <option value="1">1st Year</option>
+                            <option value="2">2nd Year</option>
+                            <option value="3">3rd Year</option>
+                            <option value="4">4th Year</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Subject *</label>
+                        <select id="assignSubject" required>
+                            <option value="">Select Subject</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Teacher *</label>
+                        <select id="assignTeacher" required>
+                            <option value="">Select Teacher</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>Section *</label>
+                    <input type="text" id="assignSection" required placeholder="e.g., A, B, C">
+                </div>
+                <button type="submit">🔗 Assign Subject</button>
+            </form>
+        </div>
+        
+        <!-- Create Section Panel -->
+        <div id="create-section" class="panel">
+            <h2>📋 Create New Section</h2>
+            <form id="sectionForm">
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Branch *</label>
+                        <select id="sectionBranch" required>
+                            <option value="">Select Branch</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Year *</label>
+                        <select id="sectionYear" required>
+                            <option value="1">1st Year</option>
+                            <option value="2">2nd Year</option>
+                            <option value="3">3rd Year</option>
+                            <option value="4">4th Year</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Section Name *</label>
+                        <input type="text" id="sectionName" required placeholder="e.g., A, B, C">
+                    </div>
+                    <div class="form-group">
+                        <label>Student Count</label>
+                        <input type="number" id="studentCount" value="60">
+                    </div>
+                </div>
+                <button type="submit">➕ Create Section</button>
+            </form>
+        </div>
+        
+        <!-- Generate Timetable Panel -->
+        <div id="generate-timetable" class="panel">
+            <h2>⏰ Generate Automatic Timetable</h2>
+            <form id="generateForm">
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Branch *</label>
+                        <select id="generateBranch" required>
+                            <option value="">Select Branch</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Year *</label>
+                        <select id="generateYear" required>
+                            <option value="1">1st Year</option>
+                            <option value="2">2nd Year</option>
+                            <option value="3">3rd Year</option>
+                            <option value="4">4th Year</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>Section *</label>
+                    <input type="text" id="generateSection" required placeholder="e.g., A, B, C">
+                </div>
+                <button type="submit">⚡ Generate Timetable</button>
+            </form>
+            <div id="generateMessage"></div>
+        </div>
+        
+        <!-- View Timetable Panel -->
+        <div id="view-timetable" class="panel">
+            <h2>👁️ View Timetable</h2>
+            <div class="form-row">
+                <div class="form-group">
+                    <label>Branch</label>
+                    <select id="viewBranch">
+                        <option value="">Select Branch</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Year</label>
+                    <select id="viewYear">
+                        <option value="1">1st Year</option>
+                        <option value="2">2nd Year</option>
+                        <option value="3">3rd Year</option>
+                        <option value="4">4th Year</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Section</label>
+                    <input type="text" id="viewSection" placeholder="e.g., A">
+                </div>
+                <div class="form-group">
+                    <button onclick="loadTimetable()" style="margin-top: 30px;">🔍 Load Timetable</button>
+                </div>
+            </div>
+            <div id="timetableDisplay"></div>
+        </div>
+    </div>
+    
+    <script>
+        const API_BASE = 'http://localhost:8000/api';
+        
+        function showPanel(panelId) {
+            document.querySelectorAll('.panel').forEach(panel => panel.classList.remove('active'));
+            document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+            document.getElementById(panelId).classList.add('active');
+            event.target.classList.add('active');
+            
+            if (panelId === 'view-timetable') {
+                loadBranches();
+            }
+        }
+        
+        async function loadBranches() {
+            const response = await fetch(`${API_BASE}/branches`);
+            const data = await response.json();
+            
+            const branchSelects = ['subjectBranch', 'assignBranch', 'sectionBranch', 'generateBranch', 'viewBranch'];
+            branchSelects.forEach(selectId => {
+                const select = document.getElementById(selectId);
+                if (select) {
+                    select.innerHTML = '<option value="">Select Branch</option>';
+                    data.branches.forEach(branch => {
+                        select.innerHTML += `<option value="${branch.branch_code}">${branch.branch_name}</option>`;
+                    });
+                }
+            });
+        }
+        
+        // Load subjects for dropdown
+        async function loadSubjects(branch, year) {
+            const response = await fetch(`${API_BASE}/subjects/${branch}/${year}`);
+            const data = await response.json();
+            const subjectSelect = document.getElementById('assignSubject');
+            subjectSelect.innerHTML = '<option value="">Select Subject</option>';
+            data.subjects.forEach(subject => {
+                subjectSelect.innerHTML += `<option value="${subject.subject_code}">${subject.subject_name} (${subject.subject_code})</option>`;
+            });
+        }
+        
+        // Load teachers for dropdown
+        async function loadTeachers() {
+            const response = await fetch(`${API_BASE}/teachers`);
+            const data = await response.json();
+            const teacherSelect = document.getElementById('assignTeacher');
+            teacherSelect.innerHTML = '<option value="">Select Teacher</option>';
+            data.teachers.forEach(teacher => {
+                teacherSelect.innerHTML += `<option value="${teacher.name}">${teacher.name} (${teacher.department})</option>`;
+            });
+        }
+        
+        // Add Teacher
+        document.getElementById('teacherForm')?.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const data = {
+                name: document.getElementById('teacherName').value,
+                department: document.getElementById('teacherDept').value,
+                email: document.getElementById('teacherEmail').value,
+                max_hours: parseInt(document.getElementById('teacherMaxHours').value)
+            };
+            
+            const response = await fetch(`${API_BASE}/teachers/add`, {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify(data)
+            });
+            const result = await response.json();
+            alert(result.message);
+            if (result.success) {
+                document.getElementById('teacherForm').reset();
+                loadTeachersList();
+            }
+        });
+        
+        // Add Subject
+        document.getElementById('subjectForm')?.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const data = {
+                subject_code: document.getElementById('subjectCode').value,
+                subject_name: document.getElementById('subjectName').value,
+                branch_code: document.getElementById('subjectBranch').value,
+                year: parseInt(document.getElementById('subjectYear').value),
+                semester: parseInt(document.getElementById('subjectSemester').value),
+                credits: parseInt(document.getElementById('subjectCredits').value),
+                is_lab: document.getElementById('subjectIsLab').checked,
+                hours_per_week: parseInt(document.getElementById('subjectHours').value)
+            };
+            
+            const response = await fetch(`${API_BASE}/subjects/add`, {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify(data)
+            });
+            const result = await response.json();
+            alert(result.message);
+            if (result.success) {
+                document.getElementById('subjectForm').reset();
+                loadSubjectsList();
+            }
+        });
+        
+        // Assign Subject
+        document.getElementById('assignForm')?.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const data = {
+                subject_code: document.getElementById('assignSubject').value,
+                teacher_name: document.getElementById('assignTeacher').value,
+                section_name: document.getElementById('assignSection').value,
+                branch_code: document.getElementById('assignBranch').value,
+                year: parseInt(document.getElementById('assignYear').value)
+            };
+            
+            const response = await fetch(`${API_BASE}/assign-subject`, {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify(data)
+            });
+            const result = await response.json();
+            alert(result.message);
+        });
+        
+        // Create Section
+        document.getElementById('sectionForm')?.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const branch = document.getElementById('sectionBranch').value;
+            const year = document.getElementById('sectionYear').value;
+            const section = document.getElementById('sectionName').value;
+            const count = document.getElementById('studentCount').value;
+            
+            const response = await fetch(`${API_BASE}/sections/create?branch_code=${branch}&year=${year}&section_name=${section}&student_count=${count}`, {
+                method: 'POST'
+            });
+            const result = await response.json();
+            alert(result.message);
+        });
+        
+        // Generate Timetable
+        document.getElementById('generateForm')?.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const data = {
+                branch_code: document.getElementById('generateBranch').value,
+                year: parseInt(document.getElementById('generateYear').value),
+                section: document.getElementById('generateSection').value,
+                semester: 1
+            };
+            
+            const response = await fetch(`${API_BASE}/timetable/generate`, {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify(data)
+            });
+            const result = await response.json();
+            document.getElementById('generateMessage').innerHTML = `<div class="message success">${result.message}</div>`;
+            setTimeout(() => {
+                document.getElementById('generateMessage').innerHTML = '';
+            }, 3000);
+        });
+        
+        // Load Timetable
+        async function loadTimetable() {
+            const branch = document.getElementById('viewBranch').value;
+            const year = document.getElementById('viewYear').value;
+            const section = document.getElementById('viewSection').value;
+            
+            if (!branch || !year || !section) {
+                alert('Please select branch, year, and section');
+                return;
+            }
+            
+            const response = await fetch(`${API_BASE}/timetable/view/${branch}/${year}/${section}`);
+            const data = await response.json();
+            
+            let html = `<h3>📅 Timetable: ${data.branch} - Year ${data.year} - Section ${data.section}</h3>`;
+            html += `<div style="overflow-x: auto;"><table class="timetable-table">`;
+            html += `<tr><th>Time / Day</th>`;
+            for (let day of data.days) {
+                html += `<th>${day}</th>`;
+            }
+            html += `</tr>`;
+            
+            for (let time of data.time_slots) {
+                html += `<tr>`;
+                html += `<td class="${time.includes('12:00') ? 'recess' : ''}"><strong>${time}</strong></td>`;
+                for (let day of data.days) {
+                    let cell = data.timetable[day][time];
+                    let cellClass = time.includes('12:00') ? 'recess' : '';
+                    html += `<td class="${cellClass}">${cell}</td>`;
+                }
+                html += `</tr>`;
+            }
+            
+            html += `</table></div>`;
+            document.getElementById('timetableDisplay').innerHTML = html;
+        }
+        
+        // Load teachers list
+        async function loadTeachersList() {
+            const response = await fetch(`${API_BASE}/teachers`);
+            const data = await response.json();
+            let html = `<table class="data-table"><tr><th>Name</th><th>Department</th><th>Max Hours/Day</th></tr>`;
+            data.teachers.forEach(teacher => {
+                html += `<tr><td>${teacher.name}</td><td>${teacher.department}</td><td>${teacher.max_hours_per_day}</td></tr>`;
+            });
+            html += `</table>`;
+            document.getElementById('teachersList').innerHTML = html;
+        }
+        
+        // Load subjects list
+        async function loadSubjectsList() {
+            const response = await fetch(`${API_BASE}/subjects/CSE/1`);
+            const data = await response.json();
+            let html = `<table class="data-table"><tr><th>Code</th><th>Subject</th><th>Credits</th><th>Lab</th></tr>`;
+            data.subjects.forEach(subject => {
+                html += `<tr><td>${subject.subject_code}</td><td>${subject.subject_name}</td><td>${subject.credits}</td><td>${subject.is_lab ? 'Yes' : 'No'}</td></tr>`;
+            });
+            html += `</table>`;
+            document.getElementById('subjectsList').innerHTML = html;
+        }
+        
+        // Event listeners for dynamic dropdowns
+        document.getElementById('assignBranch')?.addEventListener('change', () => {
+            const branch = document.getElementById('assignBranch').value;
+            const year = document.getElementById('assignYear').value;
+            if (branch && year) loadSubjects(branch, year);
+        });
+        
+        document.getElementById('assignYear')?.addEventListener('change', () => {
+            const branch = document.getElementById('assignBranch').value;
+            const year = document.getElementById('assignYear').value;
+            if (branch && year) loadSubjects(branch, year);
+        });
+        
+        // Initialize
+        loadBranches();
+        loadTeachers();
+        loadTeachersList();
+        loadSubjectsList();
+        
+        // Load stats
+        async function loadStats() {
+            try {
+                const response = await fetch(`${API_BASE}/teachers`);
+                const teachers = await response.json();
+                document.getElementById('stats-container').innerHTML = `
+                    <div class="cards-grid">
+                        <div class="card" style="background: linear-gradient(135deg, #667eea, #764ba2);">
+                            <h3>${teachers.teachers.length}</h3>
+                            <p>Teachers</p>
+                        </div>
+                        <div class="card" style="background: linear-gradient(135deg, #f093fb, #f5576c);">
+                            <h3>4+</h3>
+                            <p>Branches</p>
+                        </div>
+                        <div class="card" style="background: linear-gradient(135deg, #4facfe, #00f2fe);">
+                            <h3>4</h3>
+                            <p>Years</p>
+                        </div>
+                    </div>
+                `;
+            } catch(e) {
+                console.error(e);
+            }
+        }
+        loadStats();
+    </script>
+</body>
+</html>

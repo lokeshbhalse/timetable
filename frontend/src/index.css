@@ -1,0 +1,154 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+@tailwind base;
+
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Space+Grotesk:wght@400;500;600;700&display=swap');
+
+@layer base {
+  :root {
+    --background: 230 25% 5%;
+    --foreground: 210 20% 92%;
+
+    --card: 230 20% 9%;
+    --card-foreground: 210 20% 92%;
+
+    --popover: 230 20% 9%;
+    --popover-foreground: 210 20% 92%;
+
+    --primary: 35 95% 55%;
+    --primary-foreground: 230 25% 5%;
+
+    --secondary: 230 15% 15%;
+    --secondary-foreground: 210 20% 85%;
+
+    --muted: 230 15% 12%;
+    --muted-foreground: 220 10% 50%;
+
+    --accent: 25 90% 50%;
+    --accent-foreground: 230 25% 5%;
+
+    --destructive: 0 70% 50%;
+    --destructive-foreground: 210 20% 92%;
+
+    --border: 230 15% 16%;
+    --input: 230 15% 16%;
+    --ring: 35 95% 55%;
+
+    --radius: 0.75rem;
+
+    --sun-glow: 35 100% 60%;
+    --sun-core: 40 100% 70%;
+    --sun-corona: 25 100% 45%;
+    --space-deep: 230 30% 3%;
+    --space-nebula: 260 40% 12%;
+    --star-bright: 45 100% 90%;
+
+    --hero-gradient-start: 260 60% 55%;
+    --hero-gradient-mid: 280 70% 45%;
+    --hero-gradient-end: 330 80% 55%;
+
+    --feature-blue: 230 80% 55%;
+    --feature-green: 155 70% 40%;
+    --feature-orange: 30 90% 55%;
+
+    --sidebar-background: 230 20% 7%;
+    --sidebar-foreground: 210 20% 85%;
+    --sidebar-primary: 35 95% 55%;
+    --sidebar-primary-foreground: 230 25% 5%;
+    --sidebar-accent: 230 15% 12%;
+    --sidebar-accent-foreground: 210 20% 85%;
+    --sidebar-border: 230 15% 16%;
+    --sidebar-ring: 35 95% 55%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground font-sans;
+  }
+}
+
+/* Sun glow animation */
+@keyframes sun-pulse {
+  0%, 100% { 
+    box-shadow: 
+      0 0 60px 20px hsl(35 100% 60% / 0.3),
+      0 0 120px 60px hsl(35 100% 60% / 0.15),
+      0 0 200px 100px hsl(25 100% 45% / 0.08);
+  }
+  50% { 
+    box-shadow: 
+      0 0 80px 30px hsl(35 100% 60% / 0.4),
+      0 0 150px 80px hsl(35 100% 60% / 0.2),
+      0 0 250px 120px hsl(25 100% 45% / 0.1);
+  }
+}
+
+@keyframes twinkle {
+  0%, 100% { opacity: 0.3; }
+  50% { opacity: 1; }
+}
+
+@keyframes float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-10px); }
+}
+
+@keyframes corona-rotate {
+  from { transform: translate(-50%, -50%) rotate(0deg); }
+  to { transform: translate(-50%, -50%) rotate(360deg); }
+}
+
+.sun-pulse {
+  animation: sun-pulse 4s ease-in-out infinite;
+}
+
+.twinkle {
+  animation: twinkle var(--twinkle-duration, 3s) ease-in-out infinite;
+  animation-delay: var(--twinkle-delay, 0s);
+}
+
+.float-animation {
+  animation: float 6s ease-in-out infinite;
+}
+
+.corona-rotate {
+  animation: corona-rotate 30s linear infinite;
+}
+
+/* Scrollbar styling */
+::-webkit-scrollbar {
+  width: 6px;
+}
+::-webkit-scrollbar-track {
+  background: hsl(var(--space-deep));
+}
+::-webkit-scrollbar-thumb {
+  background: hsl(var(--muted-foreground) / 0.3);
+  border-radius: 3px;
+}
+
+/* Add these CSS variables at the very top of index.css */
+:root {
+  --gradient-nebula: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  --gradient-galaxy: radial-gradient(circle at center, #0a0a2a 0%, #1a1a3a 100%);
+}
+
+/* Star animation - add this at the bottom of index.css */
+.star {
+  position: absolute;
+  background: white;
+  border-radius: 50%;
+  animation: twinkle var(--duration, 3s) ease-in-out infinite;
+  animation-delay: var(--delay, 0s);
+}
+
+@keyframes twinkle {
+  0%, 100% { opacity: 0.2; transform: scale(1); }
+  50% { opacity: 1; transform: scale(1.2); }
+}
