@@ -4,6 +4,7 @@ import {
   GraduationCap, ShieldCheck, BookOpenCheck, ArrowLeft, 
   Mail, Lock, Clock, CheckCircle2, User, Eye, EyeOff, Building
 } from "lucide-react";
+import authService from "../services/auth.service";
 
 const roleConfig: Record<string, { label: string; icon: React.ElementType; gradient: string; benefits: string[] }> = {
   student: {
@@ -39,8 +40,9 @@ const roleConfig: Record<string, { label: string; icon: React.ElementType; gradi
 };
 
 const SignupPage = () => {
-  const { role } = useParams<{ role: string }>();
+  const { role: urlRole } = useParams<{ role: string }>();
   const navigate = useNavigate();
+  const [selectedRole, setSelectedRole] = useState<string>(urlRole || "student");
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -52,8 +54,14 @@ const SignupPage = () => {
     department: "CSE"
   });
 
-  const config = roleConfig[role || ""] || roleConfig.student;
+  const config = roleConfig[selectedRole] || roleConfig.student;
   const Icon = config.icon;
+
+  const handleRoleChange = (role: string) => {
+    setSelectedRole(role);
+    setError("");
+    navigate(`/signup/${role}`, { replace: true });
+  };
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
@@ -72,39 +80,33 @@ const SignupPage = () => {
     }
 
     try {
-      const response = await fetch("http://localhost:8000/api/signup", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          full_name: formData.full_name,
-          email: formData.email,
-          password: formData.password,
-          role: role || "student",
-          department: formData.department
-        }),
+      const username = formData.email.split('@')[0];
+      
+      const result = await authService.signup({
+        username: username,
+        email: formData.email,
+        password: formData.password,
+        full_name: formData.full_name,
+        role: selectedRole
       });
 
-      const data = await response.json();
-
-      if (data.success) {
-        // Store token and user info
-        localStorage.setItem("timetable_auth_token", data.access_token);
-        localStorage.setItem("timetable_user", JSON.stringify(data.user));
+      if (result.success) {
+        localStorage.setItem("token", result.token);
+        localStorage.setItem("user", JSON.stringify(result.user));
         
-        // Redirect based on role
-        if (role === "admin") {
+        if (selectedRole === "admin") {
           navigate("/admin/dashboard");
+        } else if (selectedRole === "teacher") {
+          navigate("/teacher/dashboard");
         } else {
-          navigate("/dashboard");
+          navigate("/student/dashboard");
         }
       } else {
-        setError(data.message || "Signup failed. Email may already exist.");
+        setError(result.message || "Signup failed. Email may already exist.");
       }
     } catch (err) {
       console.error("Signup error:", err);
-      setError("Failed to connect to server. Make sure backend is running.");
+      setError("Failed to signup,Maybe Email is already registered.");
     } finally {
       setLoading(false);
     }
@@ -179,6 +181,43 @@ const SignupPage = () => {
             </p>
           </div>
 
+          {/* Role Selection Tabs - Added without disturbing existing UI */}
+          <div className="flex rounded-lg bg-muted/50 p-1 mb-8">
+            <button
+              onClick={() => handleRoleChange("student")}
+              className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-md text-sm font-medium transition-all ${
+                selectedRole === "student"
+                  ? "bg-primary text-primary-foreground shadow-sm"
+                  : "text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              <GraduationCap className="w-4 h-4" />
+              Student
+            </button>
+            <button
+              onClick={() => handleRoleChange("teacher")}
+              className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-md text-sm font-medium transition-all ${
+                selectedRole === "teacher"
+                  ? "bg-primary text-primary-foreground shadow-sm"
+                  : "text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              <BookOpenCheck className="w-4 h-4" />
+              Teacher
+            </button>
+            <button
+              onClick={() => handleRoleChange("admin")}
+              className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-md text-sm font-medium transition-all ${
+                selectedRole === "admin"
+                  ? "bg-primary text-primary-foreground shadow-sm"
+                  : "text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              <ShieldCheck className="w-4 h-4" />
+              Admin
+            </button>
+          </div>
+
           {error && (
             <div className="mb-4 p-3 bg-red-500/10 border border-red-500 rounded-lg text-red-500 text-sm">
               {error}
@@ -218,7 +257,7 @@ const SignupPage = () => {
               </div>
             </div>
 
-            {role === "teacher" && (
+            {selectedRole === "teacher" && (
               <div>
                 <label className="block text-sm font-medium text-foreground mb-2">Department</label>
                 <div className="relative">
@@ -230,8 +269,12 @@ const SignupPage = () => {
                     className="w-full rounded-lg bg-card text-foreground border border-border pl-11 pr-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-ring transition"
                   >
                     <option value="CSE">Computer Science Engineering</option>
-                    <option value="ME">Mechanical Engineering</option>
+                    <option value="EE">Bio Medical Engineering</option>
+                       <option value="EE">Civil Engineering</option>
+                    <option value="E&TC">E&TC Engineering</option>
                     <option value="EE">Electrical Engineering</option>
+                    <option value="ME">Mechanical Engineering</option>
+                    <option value="EE">IT Engineering</option>
                   </select>
                 </div>
               </div>
@@ -273,7 +316,7 @@ const SignupPage = () => {
               </button>
               <button
                 type="button"
-                onClick={() => navigate(`/login/${role}`)}
+                onClick={() => navigate(`/login/${selectedRole}`)}
                 className="flex-1 py-3 rounded-lg border border-border bg-card text-foreground font-semibold text-sm hover:bg-muted transition-all"
               >
                 Log In

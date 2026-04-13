@@ -5,8 +5,11 @@ from passlib.context import CryptContext
 from backend.config import config
 from backend.database import db
 from typing import Optional, Dict
+from fastapi import HTTPException, Depends
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+security = HTTPBearer()
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
     """Verify password against hash"""
@@ -65,13 +68,21 @@ def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -
     """Create JWT access token"""
     to_encode = data.copy()
     if expires_delta:
-        expire = datetime.utcnow() + expires_delta
+        expire = datetime.now() + expires_delta
     else:
-        expire = datetime.utcnow() + timedelta(minutes=config.ACCESS_TOKEN_EXPIRE_MINUTES)
+        expire = datetime.now() + timedelta(minutes=config.ACCESS_TOKEN_EXPIRE_MINUTES)
     
     to_encode.update({"exp": expire})
     encoded_jwt = jwt.encode(to_encode, config.SECRET_KEY, algorithm=config.ALGORITHM)
     return encoded_jwt
+
+def create_token(user_id: int, username: str, role: str) -> str:
+    """Create JWT token for user"""
+    return create_access_token({
+        "user_id": user_id,
+        "username": username,
+        "role": role
+    })
 
 def decode_token(token: str) -> Optional[Dict]:
     """Decode JWT token"""
@@ -80,3 +91,16 @@ def decode_token(token: str) -> Optional[Dict]:
         return payload
     except JWTError:
         return None
+
+def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(security)) -> Dict:
+    """Get current user from JWT token"""
+    payload = decode_token(credentials.credentials)
+    if not payload:
+        raise HTTPException(status_code=401, detail="Invalid token")
+    return payload
+
+def require_admin(current_user: Dict = Depends(get_current_user)) -> Dict:
+    """Require admin role"""
+    if current_user.get("role") != "admin":
+        raise HTTPException(status_code=403, detail="Admin access required")
+    return current_user

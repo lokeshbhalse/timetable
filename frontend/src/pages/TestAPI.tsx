@@ -27,17 +27,11 @@ export const TestAPI = () => {
 
   const testGenerate = async () => {
     try {
-      const response = await api.post('/generate', {
-        courses: [
-          {
-            course_name: "Test Course",
-            no_of_students: 50,
-            semester: "1",
-            department: "CSE",
-            lab: "n",
-            preference: 0
-          }
-        ]
+      const response = await api.post('/timetable/generate', {
+        branch: 'CSE',
+        year: 1,
+        section: 'A',
+        semester: 1
       });
       alert('Generation successful! Check console for response');
       console.log(response.data);

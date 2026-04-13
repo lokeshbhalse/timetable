@@ -2,6 +2,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { store, BRANCHES, YEARS } from "@/lib/store";
 import { toast } from "sonner";
+import api from "../services/api";
 
 interface SubjectResponse {
   id: string | number;
@@ -29,11 +30,13 @@ const AssignSubject = () => {
 
   const loadSubjects = useCallback(async () => {
     try {
-      const response = await fetch(`http://localhost:8000/api/subjects/${branch}/${parseInt(year)}`, {
-        headers: { "Authorization": `Bearer ${localStorage.getItem("token")}` }
+      const response = await api.get("/admin/subjects", {
+        params: {
+          branch,
+          year: parseInt(year)
+        }
       });
-      const data = await response.json();
-      setSubjects(data.subjects || []);
+      setSubjects(response.data.subjects || []);
     } catch (error) {
       console.error("Error loading subjects:", error);
     }
@@ -41,11 +44,8 @@ const AssignSubject = () => {
 
   const loadTeachers = useCallback(async () => {
     try {
-      const response = await fetch("http://localhost:8000/api/teachers", {
-        headers: { "Authorization": `Bearer ${localStorage.getItem("token")}` }
-      });
-      const data = await response.json();
-      setTeachers(data.teachers || []);
+      const response = await api.get("/admin/teachers");
+      setTeachers(response.data.teachers || []);
     } catch (error) {
       console.error("Error loading teachers:", error);
     }
@@ -64,21 +64,14 @@ const AssignSubject = () => {
     }
     
     try {
-      const response = await fetch("http://localhost:8000/api/admin/subjects/assign", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "Authorization": `Bearer ${localStorage.getItem("token")}`
-        },
-        body: JSON.stringify({ 
-          subject_id: parseInt(subjectId), 
-          teacher_id: parseInt(teacherId), 
-          section,
-          branch,
-          year: parseInt(year)
-        })
+      const response = await api.post("/admin/subjects/assign", { 
+        subject_id: parseInt(subjectId), 
+        teacher_id: parseInt(teacherId), 
+        section,
+        branch,
+        year: parseInt(year)
       });
-      const data = await response.json();
+      const data = response.data;
       if (data.success) {
         toast.success("Subject assigned successfully!");
         setSubjectId("");

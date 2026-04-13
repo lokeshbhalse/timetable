@@ -2,6 +2,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { BRANCHES } from "@/lib/store";
 import { toast } from "sonner";
+import api from "../services/api";
 
 interface Teacher {
   id: string | number;
@@ -20,11 +21,8 @@ const AddTeacher = () => {
 
   const loadTeachers = useCallback(async () => {
     try {
-      const response = await fetch("http://localhost:8000/api/teachers", {
-        headers: { "Authorization": `Bearer ${localStorage.getItem("token")}` }
-      });
-      const data = await response.json();
-      setTeachers(data.teachers || []);
+      const response = await api.get("/admin/teachers");
+      setTeachers(response.data.teachers || []);
     } catch (error) {
       console.error("Error loading teachers:", error);
     }
@@ -42,23 +40,15 @@ const AddTeacher = () => {
     }
     
     try {
-      const response = await fetch("http://localhost:8000/api/admin/teachers", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "Authorization": `Bearer ${localStorage.getItem("token")}`
-        },
-        body: JSON.stringify({ name, email, department })
-      });
-      const data = await response.json();
-      if (data.success) {
+      const response = await api.post("/admin/teachers", { name, email, department });
+      if (response.data.success) {
         toast.success("Teacher added successfully!");
         setName("");
         setDepartment("");
         setEmail("");
         loadTeachers();
       } else {
-        toast.error(data.message || "Failed to add teacher");
+        toast.error(response.data.message || "Failed to add teacher");
       }
     } catch (error) {
       toast.error("Failed to add teacher");

@@ -47,7 +47,7 @@ class TimetableService {
   }
 
   async getTeachers(): Promise<Teacher[]> {
-    const response = await api.get('/teachers');
+    const response = await api.get('/admin/teachers');
     return response.data.teachers || [];
   }
 
@@ -57,7 +57,9 @@ class TimetableService {
   }
 
   async getSubjects(branch: string, year: number): Promise<Subject[]> {
-    const response = await api.get(`/subjects/${branch}/${year}`);
+    const response = await api.get('/admin/subjects', {
+      params: { branch, year }
+    });
     return response.data.subjects || [];
   }
 
@@ -68,13 +70,15 @@ class TimetableService {
   }
 
   // Timetable
-  async generateTimetable(branch: string, year: number, section: string): Promise<ApiResponse> {
-    return api.post('/timetable/generate', { branch, year, section });
+  async generateTimetable(branch: string, year: number, section: string, semester: number): Promise<ApiResponse> {
+    return api.post('/timetable/generate', { branch, year, section, semester });
   }
 
-  async viewTimetable(branch: string, year: number, section: string): Promise<TimetableData> {
-    const response = await api.get(`/timetable/view/${branch}/${year}/${section}`);
-    return response.data;
+  async viewTimetable(branch: string, year: number, section: string, semester?: number): Promise<TimetableData> {
+    const response = await api.get('/timetable/view', {
+      params: { branch, year, section, semester }
+    });
+    return response.data.timetable || response.data;
   }
 }
 

@@ -1,4 +1,4 @@
-# backend_api.py - Complete Working Version with Saved Timetables
+# backend_api.py - Complete Working Version with Teacher Schedule
 from fastapi import FastAPI, HTTPException, Depends, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
@@ -17,7 +17,7 @@ app = FastAPI(title="SGSITS Timetable API")
 # ============ CORS ============
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=["http://localhost:8080", "http://localhost:5173", "http://localhost:3000"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -61,6 +61,7 @@ def init_db():
             password_hash TEXT,
             full_name TEXT,
             role TEXT DEFAULT 'student',
+            is_active BOOLEAN DEFAULT 1,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
     ''')
@@ -170,6 +171,7 @@ def init_db():
             branch TEXT,
             year INTEGER,
             section TEXT,
+            semester INTEGER,
             timetable_data TEXT,
             generated_by INTEGER,
             generated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -182,8 +184,8 @@ def init_db():
     
     # Insert default admin
     admin_pw = hashlib.sha256("admin123".encode()).hexdigest()
-    cursor.execute("INSERT OR IGNORE INTO users (username, email, password_hash, full_name, role) VALUES (?,?,?,?,?)",
-                   ("admin", "admin@sgsits.edu", admin_pw, "Administrator", "admin"))
+    cursor.execute("INSERT OR IGNORE INTO users (username, email, password_hash, full_name, role, is_active) VALUES (?,?,?,?,?,?)",
+                   ("admin", "admin@sgsits.edu", admin_pw, "Administrator", "admin", 1))
     
     # Insert sample teachers
     teachers = [
@@ -192,9 +194,6 @@ def init_db():
         ("Prof. Amit Tiwari", "amit@sgsits.edu", "EE"),
         ("Prof. Priya Patel", "priya@sgsits.edu", "ME"),
         ("Prof. Sanjay Gupta", "sanjay@sgsits.edu", "CSE"),
-        ("Prof. Vikram Singh", "vikram@sgsits.edu", "ECE"),
-        ("Prof. Anjali Mehta", "anjali@sgsits.edu", "CE"),
-        ("Prof. Rajesh Kumar", "rajesh@sgsits.edu", "IT"),
     ]
     for t in teachers:
         cursor.execute("INSERT OR IGNORE INTO teachers (name, email, department) VALUES (?,?,?)", t)
@@ -204,15 +203,10 @@ def init_db():
         ("R101", "Room 101", 60, "lecture"),
         ("R102", "Room 102", 50, "lecture"),
         ("R103", "Room 103", 50, "lecture"),
-        ("R104", "Room 104", 55, "lecture"),
         ("R201", "Room 201", 80, "lecture"),
         ("R202", "Room 202", 70, "lecture"),
-        ("R203", "Room 203", 65, "lecture"),
         ("LAB1", "Computer Lab 1", 40, "lab"),
         ("LAB2", "Computer Lab 2", 40, "lab"),
-        ("LAB3", "Electronics Lab", 35, "lab"),
-        ("LAB4", "Physics Lab", 40, "lab"),
-        ("LAB5", "Chemistry Lab", 40, "lab"),
     ]
     for code, name, cap, rtype in rooms:
         cursor.execute("INSERT OR IGNORE INTO rooms (room_code, room_name, capacity, room_type) VALUES (?,?,?,?)",
@@ -256,15 +250,12 @@ def init_db():
             slot_id += 1
     
     # Insert sample course assignments
-    # Get teacher IDs
     cursor.execute("SELECT id FROM teachers")
     teacher_ids = [row['id'] for row in cursor.fetchall()]
     
-    # Get course IDs
     cursor.execute("SELECT id FROM courses")
     course_ids = [row['id'] for row in cursor.fetchall()]
     
-    # Get group IDs
     cursor.execute("SELECT id FROM student_groups")
     group_ids = [row['id'] for row in cursor.fetchall()]
     
@@ -282,22 +273,22 @@ def init_db():
     # Insert sample student users
     student_pw = hashlib.sha256("student123".encode()).hexdigest()
     students = [
-        ("student1", "student1@sgsits.edu", student_pw, "John Student", "student"),
-        ("student2", "student2@sgsits.edu", student_pw, "Jane Student", "student"),
-        ("student", "student@sgsits.edu", student_pw, "Demo Student", "student"),
+        ("student1", "student1@sgsits.edu", student_pw, "John Student", "student", 1),
+        ("student2", "student2@sgsits.edu", student_pw, "Jane Student", "student", 1),
+        ("student", "student@sgsits.edu", student_pw, "Demo Student", "student", 1),
     ]
     for s in students:
-        cursor.execute("INSERT OR IGNORE INTO users (username, email, password_hash, full_name, role) VALUES (?,?,?,?,?)", s)
+        cursor.execute("INSERT OR IGNORE INTO users (username, email, password_hash, full_name, role, is_active) VALUES (?,?,?,?,?,?)", s)
     
     # Insert sample teacher users
     teacher_pw = hashlib.sha256("teacher123".encode()).hexdigest()
     teacher_users = [
-        ("teacher1", "teacher1@sgsits.edu", teacher_pw, "Prof. Rahul Sharma", "teacher"),
-        ("teacher2", "teacher2@sgsits.edu", teacher_pw, "Prof. Neha Verma", "teacher"),
-        ("teacher", "teacher@sgsits.edu", teacher_pw, "Demo Teacher", "teacher"),
+        ("teacher1", "teacher1@sgsits.edu", teacher_pw, "Prof. Rahul Sharma", "teacher", 1),
+        ("teacher2", "teacher2@sgsits.edu", teacher_pw, "Prof. Neha Verma", "teacher", 1),
+        ("teacher", "teacher@sgsits.edu", teacher_pw, "Demo Teacher", "teacher", 1),
     ]
     for t in teacher_users:
-        cursor.execute("INSERT OR IGNORE INTO users (username, email, password_hash, full_name, role) VALUES (?,?,?,?,?)", t)
+        cursor.execute("INSERT OR IGNORE INTO users (username, email, password_hash, full_name, role, is_active) VALUES (?,?,?,?,?,?)", t)
     
     conn.commit()
     conn.close()
@@ -365,13 +356,14 @@ class TimetableGenerateRequest(BaseModel):
     branch: str
     year: int
     section: str
+    semester: int = 1
 
 @app.post("/api/auth/login")
 async def login(request: LoginRequest):
     print(f"Login attempt for username: {request.username}")
     conn = get_db()
     cursor = conn.cursor()
-    cursor.execute("SELECT * FROM users WHERE username = ? OR email = ?", (request.username, request.username))
+    cursor.execute("SELECT * FROM users WHERE username = ? OR email = ? AND is_active = 1", (request.username, request.username))
     user = cursor.fetchone()
     conn.close()
     
@@ -406,8 +398,8 @@ async def signup(request: SignupRequest):
         raise HTTPException(status_code=400, detail="User already exists")
     
     cursor.execute(
-        "INSERT INTO users (username, email, password_hash, full_name, role) VALUES (?,?,?,?,?)",
-        (request.username, request.email, hash_password(request.password), request.full_name, request.role)
+        "INSERT INTO users (username, email, password_hash, full_name, role, is_active) VALUES (?,?,?,?,?,?)",
+        (request.username, request.email, hash_password(request.password), request.full_name, request.role, 1)
     )
     conn.commit()
     user_id = cursor.lastrowid
@@ -435,6 +427,58 @@ async def get_teachers():
     teachers = [dict(row) for row in cursor.fetchall()]
     conn.close()
     return {"teachers": teachers}
+
+# ============ TEACHER SCHEDULE ENDPOINT ============
+@app.get("/api/teacher/schedule")
+async def get_teacher_schedule(current_user=Depends(get_current_user)):
+    """Get logged-in teacher's schedule"""
+    
+    if current_user.get("role") != "teacher":
+        raise HTTPException(status_code=403, detail="Only teachers can access this")
+    
+    username = current_user.get("username")
+    
+    conn = get_db()
+    cursor = conn.cursor()
+    
+    # Get teacher ID from username
+    cursor.execute("SELECT id FROM teachers WHERE email LIKE ?", (f"%{username}%",))
+    teacher = cursor.fetchone()
+    
+    if not teacher:
+        cursor.execute("SELECT id FROM users WHERE username = ? AND role = 'teacher'", (username,))
+        user = cursor.fetchone()
+        if not user:
+            conn.close()
+            return {"schedule": [], "message": "No schedule found"}
+        teacher_id = user['id']
+    else:
+        teacher_id = teacher['id']
+    
+    # Get teacher's schedule
+    cursor.execute('''
+        SELECT te.*, 
+               ts.day_name, ts.start_time, ts.end_time,
+               c.course_code, c.course_name,
+               sg.group_name,
+               r.room_code
+        FROM timetable_entries te
+        JOIN time_slots ts ON te.slot_id = ts.id
+        JOIN courses c ON te.course_id = c.id
+        JOIN student_groups sg ON te.group_id = sg.id
+        JOIN rooms r ON te.room_id = r.id
+        WHERE te.teacher_id = ?
+        ORDER BY ts.day_of_week, ts.start_time
+    ''', (teacher_id,))
+    
+    schedule = [dict(row) for row in cursor.fetchall()]
+    conn.close()
+    
+    return {
+        "teacher_name": current_user.get("full_name") or current_user.get("username"),
+        "schedule": schedule,
+        "total_classes": len(schedule)
+    }
 
 # ============ SUBJECT ENDPOINTS ============
 @app.post("/api/admin/subjects")
@@ -464,21 +508,58 @@ async def get_subjects(branch: str, year: int):
     conn.close()
     return {"subjects": subjects}
 
-# ============ TIMETABLE GENERATION WITH SAVING ============
+# ============ ADMIN USER MANAGEMENT ENDPOINTS ============
+@app.get("/api/admin/users")
+async def get_all_users(current_user=Depends(require_admin)):
+    conn = get_db()
+    cursor = conn.cursor()
+    cursor.execute('''
+        SELECT id, username, email, full_name, role, created_at, is_active 
+        FROM users 
+        ORDER BY created_at DESC
+    ''')
+    users = [dict(row) for row in cursor.fetchall()]
+    conn.close()
+    return {"users": users}
+
+@app.put("/api/admin/users/{user_id}/status")
+async def update_user_status(user_id: int, request: dict, current_user=Depends(require_admin)):
+    is_active = request.get('is_active', 1)
+    conn = get_db()
+    cursor = conn.cursor()
+    cursor.execute("UPDATE users SET is_active = ? WHERE id = ?", (is_active, user_id))
+    conn.commit()
+    conn.close()
+    return {"success": True, "message": "User status updated"}
+
+@app.delete("/api/admin/users/{user_id}")
+async def delete_user(user_id: int, current_user=Depends(require_admin)):
+    conn = get_db()
+    cursor = conn.cursor()
+    
+    cursor.execute("SELECT role FROM users WHERE id = ?", (user_id,))
+    user = cursor.fetchone()
+    
+    if user and user['role'] == 'admin':
+        conn.close()
+        raise HTTPException(status_code=403, detail="Cannot delete admin user")
+    
+    cursor.execute("DELETE FROM users WHERE id = ?", (user_id,))
+    conn.commit()
+    conn.close()
+    return {"success": True, "message": "User deleted"}
+
+# ============ TIMETABLE GENERATION ============
 @app.post("/api/timetable/generate")
 async def generate_timetable(request: TimetableGenerateRequest, current_user=Depends(require_admin)):
-    """Generate timetable using the existing database schema and save for sharing"""
-
     conn = get_db()
     cursor = conn.cursor()
 
-    # Map year to the correct abbreviation
     year_abbrev = {1: "FY", 2: "SY", 3: "TY", 4: "BTech"}
     year_display = year_abbrev.get(request.year, f"Year {request.year}")
     
     group_code = f"{request.branch}{request.year}{request.section}"
     
-    # Get or create the student group
     cursor.execute("SELECT id FROM student_groups WHERE group_code = ?", (group_code,))
     group_row = cursor.fetchone()
 
@@ -487,44 +568,38 @@ async def generate_timetable(request: TimetableGenerateRequest, current_user=Dep
             INSERT INTO student_groups (group_code, group_name, semester, department, student_count) 
             VALUES (?, ?, ?, ?, ?)
         """, (group_code, f"{request.branch} {year_display} Section {request.section}", 
-              request.year, request.branch, 60))
+              request.semester, request.branch, 60))
         group_id = cursor.lastrowid
     else:
         group_id = group_row['id']
 
-    # Clear existing timetable entries for this group
-    cursor.execute("DELETE FROM timetable_entries WHERE group_id = ?", (group_id,))
+    cursor.execute("DELETE FROM timetable_entries WHERE group_id = ? AND semester = ?", (group_id, request.semester))
 
-    # Get course assignments for this group
     cursor.execute("""
         SELECT ca.*, c.course_code, c.course_name, t.name as teacher_name, t.id as teacher_id
         FROM course_assignments ca
         JOIN courses c ON ca.course_id = c.id
         JOIN teachers t ON ca.teacher_id = t.id
         WHERE ca.group_id = ? AND ca.semester = ?
-    """, (group_id, request.year))
+    """, (group_id, request.semester))
 
     assignments = cursor.fetchall()
 
     if not assignments:
         conn.close()
-        return {"success": False, "message": "No course assignments found for this group. Please assign courses first."}
+        return {"success": False, "message": f"No course assignments found for Semester {request.semester}"}
 
-    # Get available time slots (excluding breaks)
     cursor.execute("SELECT id, day_name, start_time, end_time FROM time_slots WHERE is_break = 0 ORDER BY day_of_week, start_time")
     time_slots = cursor.fetchall()
 
-    # Track teacher schedules to prevent conflicts
     teacher_schedule = {}
     room_schedule = {}
     assigned_count = 0
     timetable_entries_list = []
 
-    # Get available rooms
     cursor.execute("SELECT id FROM rooms ORDER BY capacity DESC")
     available_rooms = [row['id'] for row in cursor.fetchall()]
 
-    # Assign each course to time slots
     for assignment in assignments:
         teacher_id = assignment['teacher_id']
         course_id = assignment['course_id']
@@ -555,7 +630,7 @@ async def generate_timetable(request: TimetableGenerateRequest, current_user=Dep
                 cursor.execute("""
                     INSERT INTO timetable_entries (teacher_id, group_id, room_id, slot_id, course_id, semester)
                     VALUES (?, ?, ?, ?, ?, ?)
-                """, (teacher_id, group_id, room_id, slot_id, course_id, request.year))
+                """, (teacher_id, group_id, room_id, slot_id, course_id, request.semester))
 
                 teacher_schedule[teacher_id].add(slot_id)
                 room_schedule[room_id].add(slot_id)
@@ -571,7 +646,6 @@ async def generate_timetable(request: TimetableGenerateRequest, current_user=Dep
                 assigned_count += 1
                 slots_assigned += 1
 
-    # Save timetable data to saved_timetables table for sharing
     days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday']
     time_slots_list = ['09:00-10:00', '10:00-11:00', '11:00-12:00', '12:00-13:00',
                        '14:00-15:00', '15:00-16:00', '16:00-17:00']
@@ -579,6 +653,7 @@ async def generate_timetable(request: TimetableGenerateRequest, current_user=Dep
     timetable_data = json.dumps({
         'branch': request.branch,
         'year': request.year,
+        'semester': request.semester,
         'section': request.section,
         'entries': timetable_entries_list,
         'days': days,
@@ -587,42 +662,39 @@ async def generate_timetable(request: TimetableGenerateRequest, current_user=Dep
     })
     
     cursor.execute('''
-        INSERT OR REPLACE INTO saved_timetables (branch, year, section, timetable_data, generated_by, is_active)
-        VALUES (?, ?, ?, ?, ?, 1)
-    ''', (request.branch, request.year, request.section, timetable_data, current_user.get('user_id', 1)))
+        INSERT OR REPLACE INTO saved_timetables (branch, year, section, semester, timetable_data, generated_by, is_active)
+        VALUES (?, ?, ?, ?, ?, ?, 1)
+    ''', (request.branch, request.year, request.section, request.semester, timetable_data, current_user.get('user_id', 1)))
 
     conn.commit()
     conn.close()
 
     return {
         "success": True,
-        "message": f"Timetable generated and saved for {request.branch} Year {request.year} Section {request.section}",
+        "message": f"Timetable generated for {request.branch} Year {request.year} Semester {request.semester} Section {request.section}",
         "assignments": assigned_count
     }
 
 @app.get("/api/timetable/view/{branch}/{year}/{section}")
-async def view_timetable(branch: str, year: int, section: str, current_user=Depends(get_current_user)):
+async def view_timetable(branch: str, year: int, section: str, semester: int = 1, current_user=Depends(get_current_user)):
     conn = get_db()
     cursor = conn.cursor()
     
-    # First check if there's a saved timetable
     cursor.execute('''
         SELECT timetable_data, generated_at 
         FROM saved_timetables 
-        WHERE branch = ? AND year = ? AND section = ? AND is_active = 1
+        WHERE branch = ? AND year = ? AND section = ? AND semester = ? AND is_active = 1
         ORDER BY generated_at DESC LIMIT 1
-    ''', (branch, year, section))
+    ''', (branch, year, section, semester))
     
     saved = cursor.fetchone()
     
     if saved:
-        # Return saved timetable
         data = json.loads(saved['timetable_data'])
         days = data.get('days', ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'])
         time_slots = data.get('time_slots', ['09:00-10:00', '10:00-11:00', '11:00-12:00', '12:00-13:00', 
                                               '14:00-15:00', '15:00-16:00', '16:00-17:00'])
         
-        # Build matrix from saved entries
         matrix = {day: {slot: '—' for slot in time_slots} for day in days}
         
         for entry in data.get('entries', []):
@@ -631,7 +703,6 @@ async def view_timetable(branch: str, year: int, section: str, current_user=Depe
             if day and slot and day in matrix and slot in matrix[day]:
                 matrix[day][slot] = f"{entry.get('subject_code', '')}<br>({entry.get('teacher_name', '')})"
         
-        # Add lunch break
         for day in days:
             if '12:00-13:00' in matrix[day]:
                 matrix[day]['12:00-13:00'] = '🍽️ LUNCH BREAK'
@@ -639,6 +710,7 @@ async def view_timetable(branch: str, year: int, section: str, current_user=Depe
         return {
             "branch": branch,
             "year": year,
+            "semester": semester,
             "section": section,
             "days": days,
             "time_slots": time_slots,
@@ -646,8 +718,6 @@ async def view_timetable(branch: str, year: int, section: str, current_user=Depe
             "timetable": matrix
         }
     
-    # Fallback to querying timetable_entries table directly
-    year_abbrev = {1: "FY", 2: "SY", 3: "TY", 4: "BTech"}
     group_code = f"{branch}{year}{section}"
     
     cursor.execute("SELECT id FROM student_groups WHERE group_code = ?", (group_code,))
@@ -664,6 +734,7 @@ async def view_timetable(branch: str, year: int, section: str, current_user=Depe
         return {
             "branch": branch,
             "year": year,
+            "semester": semester,
             "section": section,
             "days": days,
             "time_slots": time_slots,
@@ -681,9 +752,9 @@ async def view_timetable(branch: str, year: int, section: str, current_user=Depe
         JOIN courses c ON te.course_id = c.id
         JOIN teachers t ON te.teacher_id = t.id
         JOIN rooms r ON te.room_id = r.id
-        WHERE te.group_id = ?
+        WHERE te.group_id = ? AND te.semester = ?
         ORDER BY ts.day_of_week, ts.start_time
-    ''', (group_id,))
+    ''', (group_id, semester))
 
     entries = [dict(row) for row in cursor.fetchall()]
     conn.close()
@@ -706,6 +777,7 @@ async def view_timetable(branch: str, year: int, section: str, current_user=Depe
     return {
         "branch": branch,
         "year": year,
+        "semester": semester,
         "section": section,
         "days": days,
         "time_slots": time_slots,
@@ -735,21 +807,6 @@ async def get_branches():
         {"code": "IT", "name": "Information Technology"}
     ]}
 
-# ============ TIMETABLE HISTORY ============
-@app.get("/api/timetable/history")
-async def get_timetable_history(current_user=Depends(require_admin)):
-    """Get all saved timetables (admin only)"""
-    conn = get_db()
-    cursor = conn.cursor()
-    cursor.execute('''
-        SELECT id, branch, year, section, generated_at, is_active
-        FROM saved_timetables
-        ORDER BY generated_at DESC
-    ''')
-    history = [dict(row) for row in cursor.fetchall()]
-    conn.close()
-    return {"history": history}
-
 @app.get("/")
 async def root():
     return {"message": "SGSITS Timetable API is running", "status": "healthy"}
@@ -767,10 +824,9 @@ if __name__ == "__main__":
     print("   Student:  student1 / student123")
     print("="*50)
     print("✅ Features:")
+    print("   - Teacher can view their own schedule")
+    print("   - Semester-based timetable generation")
     print("   - Monday-Friday timetable (5 days)")
     print("   - Teacher conflict prevention")
-    print("   - Timetable saved and shared across all roles")
-    print("   - Teachers and students can view generated timetables")
-    print("   - Lunch break at 12:00-13:00")
     print("="*50)
     uvicorn.run(app, host="0.0.0.0", port=8000)

@@ -1,4 +1,4 @@
-# main.py - Main entry point for Timetable Generator
+# main.py - Complete Main Entry Point with Admin Routes
 import sys
 import os
 
@@ -12,9 +12,10 @@ from contextlib import asynccontextmanager
 
 # Import from backend
 from backend.database import get_db, init_db
+from db_queries import db_queries
 from backend.legacy.Bipartite_Matching_Assignment import create_timetable_scheduler
-from backend.db_queries import db_queries
 from backend.services.timetable_service import timetable_service
+from backend.routes import admin_routes
 
 # Create FastAPI app with lifespan
 @asynccontextmanager
@@ -37,11 +38,14 @@ app = FastAPI(
 # Configure CORS
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:8080", "http://localhost:5173", "http://localhost:3000", "*"],
+    allow_origins=["http://localhost:8080", "http://localhost:5173", "http://localhost:3000"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# ============ INCLUDE ADMIN ROUTES ============
+app.include_router(admin_routes.router)
 
 # ============ HEALTH CHECK ============
 @app.get("/")
@@ -57,7 +61,8 @@ async def root():
             "groups": "/api/groups",
             "rooms": "/api/rooms",
             "courses": "/api/courses",
-            "timetable": "/api/timetable/generate"
+            "timetable": "/api/timetable/generate",
+            "admin": "/api/admin/users"
         }
     }
 
@@ -141,19 +146,81 @@ async def get_course_assignments(teacher_id: int = None, group_id: int = None, s
 
 # ============ TIMETABLE GENERATION ============
 @app.post("/api/timetable/generate")
-async def generate_timetable(semester: int = None, department: str = None, priority: str = "lab"):
+async def generate_timetable(request: dict):
     """Generate a new timetable using the scheduling algorithm"""
     try:
-        result = timetable_service.generate_timetable(semester, department, priority)
-        return result
+        branch = request.get("branch")
+        semester = request.get("semester")
+        priority = request.get("priority", "lab")
+        department = branch or request.get("department")
+
+        result = timetable_service.generate_timetable(
+            semester=semester,
+            department=department,
+            priority=priority
+        )
+
+        return {
+            "success": True,
+            "message": "Timetable generated successfully",
+            "result": result
+        }
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.get("/api/timetable/view")
-async def view_timetable(group_id: int = None, teacher_id: int = None, room_id: int = None):
+async def view_timetable(
+    group_id: int = None,
+    teacher_id: int = None,
+    room_id: int = None,
+    branch: str = None,
+    year: int = None,
+    section: str = None,
+    semester: int = None
+):
     """View generated timetable"""
-    result = timetable_service.get_timetable(group_id, teacher_id, room_id)
+    resolved_group_id = group_id
+
+    if branch or section or semester or year:
+        with get_db() as conn:
+            cursor = conn.cursor()
+            query = "SELECT id FROM student_groups WHERE 1=1"
+            params = []
+            if branch:
+                query += " AND department = ?"
+                params.append(branch)
+            if section:
+                query += " AND group_code = ?"
+                params.append(section)
+            if semester:
+                query += " AND semester = ?"
+                params.append(semester)
+            elif year:
+                # Map year to semester range if year is provided
+                if year == 1:
+                    query += " AND semester IN (1, 2)"
+                elif year == 2:
+                    query += " AND semester IN (3, 4)"
+                elif year == 3:
+                    query += " AND semester IN (5, 6)"
+                elif year == 4:
+                    query += " AND semester IN (7, 8)"
+            cursor.execute(query, tuple(params))
+            row = cursor.fetchone()
+            if row:
+                resolved_group_id = row['id']
+
+    result = timetable_service.get_timetable(resolved_group_id, teacher_id, room_id)
     return {"timetable": result, "count": len(result)}
+
+@app.get("/api/branches")
+async def get_branches():
+    """Get distinct branch list for timetable selection"""
+    with get_db() as conn:
+        cursor = conn.cursor()
+        cursor.execute("SELECT DISTINCT department AS branch FROM student_groups WHERE department IS NOT NULL ORDER BY department")
+        branches = [row['branch'] for row in cursor.fetchall()]
+    return {"branches": branches}
 
 # ============ CONFLICT MANAGEMENT ============
 @app.get("/api/conflicts")
@@ -226,6 +293,94 @@ async def get_time_slots(day: int = None):
     
     return {"time_slots": slots}
 
+# ============ AUTH ENDPOINTS (for compatibility) ============
+from pydantic import BaseModel
+
+class LoginRequest(BaseModel):
+    username: str
+    password: str
+
+class SignupRequest(BaseModel):
+    username: str
+    email: str
+    password: str
+    full_name: str
+    role: str = "student"
+
+@app.post("/api/auth/login")
+async def login(request: LoginRequest):
+    """Login endpoint - uses existing auth service"""
+    from backend.auth import authenticate_user, create_token
+    import hashlib
+    
+    def hash_password(password: str) -> str:
+        return hashlib.sha256(password.encode()).hexdigest()
+    
+    with get_db() as conn:
+        cursor = conn.cursor()
+        cursor.execute("SELECT * FROM users WHERE username = ? AND is_active = 1", (request.username,))
+        user = cursor.fetchone()
+        
+        if not user:
+            raise HTTPException(status_code=401, detail="Invalid credentials")
+        
+        if user['password_hash'] != hash_password(request.password):
+            raise HTTPException(status_code=401, detail="Invalid credentials")
+        
+        token = create_token(user['id'], user['username'], user['role'])
+        
+        return {
+            "success": True,
+            "token": token,
+            "user": {
+                "id": user['id'],
+                "username": user['username'],
+                "email": user['email'],
+                "full_name": user['full_name'],
+                "role": user['role']
+            }
+        }
+
+@app.post("/api/auth/signup")
+async def signup(request: SignupRequest):
+    """Signup endpoint"""
+    import hashlib
+    
+    def hash_password(password: str) -> str:
+        return hashlib.sha256(password.encode()).hexdigest()
+    
+    with get_db() as conn:
+        cursor = conn.cursor()
+        
+        # Check if user exists
+        cursor.execute("SELECT id FROM users WHERE username = ? OR email = ?", (request.username, request.email))
+        if cursor.fetchone():
+            raise HTTPException(status_code=400, detail="Username or email already exists")
+        
+        # Create user
+        cursor.execute("""
+            INSERT INTO users (username, email, password_hash, full_name, role, is_active)
+            VALUES (?, ?, ?, ?, ?, ?)
+        """, (request.username, request.email, hash_password(request.password), request.full_name, request.role, 1))
+        
+        user_id = cursor.lastrowid
+        conn.commit()
+        
+        from backend.auth import create_token
+        token = create_token(user_id, request.username, request.role)
+        
+        return {
+            "success": True,
+            "token": token,
+            "user": {
+                "id": user_id,
+                "username": request.username,
+                "email": request.email,
+                "full_name": request.full_name,
+                "role": request.role
+            }
+        }
+
 # ============ RUN SERVER ============
 if __name__ == "__main__":
     print("=" * 60)
@@ -244,6 +399,9 @@ if __name__ == "__main__":
     print("   POST /api/timetable/generate - Generate timetable")
     print("   GET  /api/timetable/view - View timetable")
     print("   GET  /api/conflicts - View conflicts")
+    print("   GET  /api/admin/users - Admin: Get all users")
+    print("   POST /api/admin/teachers - Admin: Add teacher")
+    print("   POST /api/admin/subjects - Admin: Add subject")
     print("=" * 60)
     
     uvicorn.run(app, host="127.0.0.1", port=8000, reload=True)

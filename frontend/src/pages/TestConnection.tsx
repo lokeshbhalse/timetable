@@ -68,10 +68,10 @@ const TestConnection = () => {
     ];
     
     try {
-      const response = await fetch('http://localhost:8000/api/generate', {
+      const response = await fetch('http://localhost:8000/api/timetable/generate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ courses: sampleCourses })
+        body: JSON.stringify({ branch: 'CSE', year: 1, section: 'A', semester: 1 })
       });
       
       if (!response.ok) throw new Error(`HTTP ${response.status}`);
@@ -173,7 +173,7 @@ const TestConnection = () => {
       }}>
         <h3>📝 Troubleshooting:</h3>
         <ol>
-          <li>Make sure backend is running: <code>python app.py</code> in a separate terminal</li>
+          <li>Make sure backend is running: <code>python main.py</code> in a separate terminal</li>
           <li>Backend should show: <code>Uvicorn running on http://127.0.0.1:8000</code></li>
           <li>Test backend directly: <a href="http://localhost:8000/api/health" target="_blank">http://localhost:8000/api/health</a></li>
           <li>Check if port 8000 is not blocked by firewall</li>

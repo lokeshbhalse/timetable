@@ -16,6 +16,7 @@ A complete timetable generation system for engineering colleges with role-based 
 ## 📁 Tech Stack
 
 **Frontend:**
+
 - React 18 + TypeScript
 - Tailwind CSS
 - Vite
@@ -25,6 +26,7 @@ A complete timetable generation system for engineering colleges with role-based 
 - SheetJS (Excel export)
 
 **Backend:**
+
 - FastAPI (Python)
 - SQLite3
 - JWT Authentication
@@ -33,6 +35,7 @@ A complete timetable generation system for engineering colleges with role-based 
 ## 🛠️ Installation
 
 ### Prerequisites
+
 - Python 3.8+
 - Node.js 16+
 - npm or yarn
@@ -52,3 +55,85 @@ python reset_db.py
 
 # Run backend server
 python backend_api.py
+```
+
+## 🚀 Deployment
+
+### Frontend (Vercel)
+
+1. **Push to GitHub** (if not already done)
+2. **Connect to Vercel**: Go to [vercel.com/new](https://vercel.com/new?teamSlug=prince-mehras-projects-a117ed40)
+3. **Import your repository**
+4. **Configure Environment Variables**:
+   - `VITE_API_BASE_URL`: Your backend API URL (e.g., `https://your-backend.onrender.com/api`)
+5. **Deploy**
+
+### Backend (Separate Deployment)
+
+Since Vercel doesn't natively support FastAPI, deploy the backend separately:
+
+**Recommended Services:**
+
+- **Railway**: `railway.app` (free tier available)
+- **Render**: `render.com` (free tier available)
+- **Heroku**: `heroku.com` (paid)
+
+**Deployment Steps:**
+
+1. Create account on chosen platform
+2. Connect your GitHub repository
+3. Set environment variables (copy from `.env`)
+4. Deploy
+
+**Example Railway Deployment:**
+
+```bash
+# Install Railway CLI
+npm install -g @railway/cli
+
+# Login and deploy
+railway login
+railway init
+railway up
+```
+
+### Environment Variables
+
+**Frontend (.env):**
+
+```
+VITE_API_BASE_URL=https://your-backend-url/api
+VITE_APP_NAME=Timetable Generator
+```
+
+**Backend (.env):**
+
+```
+DB_HOST=your-database-host
+DB_USER=your-db-user
+DB_PASSWORD=your-db-password
+DB_NAME=your-db-name
+SECRET_KEY=your-super-secret-key
+ALGORITHM=HS256
+ACCESS_TOKEN_EXPIRE_MINUTES=30
+```
+
+## 📝 API Endpoints
+
+- `POST /api/auth/login` - User login
+- `POST /api/timetable/generate` - Generate timetable (Admin only)
+- `GET /api/timetable/view/{branch}/{year}/{section}` - View timetable
+- `GET /api/teachers` - Get all teachers
+- `POST /api/admin/teachers` - Add teacher (Admin only)
+
+## 🤝 Contributing
+
+1. Fork the repository
+2. Create your feature branch (`git checkout -b feature/AmazingFeature`)
+3. Commit your changes (`git commit -m 'Add some AmazingFeature'`)
+4. Push to the branch (`git push origin feature/AmazingFeature`)
+5. Open a Pull Request
+
+## 📄 License
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.

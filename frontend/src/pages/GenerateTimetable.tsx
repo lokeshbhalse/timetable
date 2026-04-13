@@ -1,14 +1,26 @@
 // frontend/src/pages/GenerateTimetable.tsx
 import { useState, useEffect, useCallback } from "react";
-import { store, BRANCHES, YEARS } from "@/lib/store";
+import { BRANCHES, YEARS } from "@/lib/store";
 import { toast } from "sonner";
 import * as XLSX from 'xlsx';
 import { Download, Calendar, Loader2 } from "lucide-react";
+import api from "../services/api";
+
+// Semester mapping based on year
+const getSemestersForYear = (year: string) => {
+  const yearNum = parseInt(year);
+  if (yearNum === 1) return [{ value: 1, label: "Semester 1" }, { value: 2, label: "Semester 2" }];
+  if (yearNum === 2) return [{ value: 3, label: "Semester 3" }, { value: 4, label: "Semester 4" }];
+  if (yearNum === 3) return [{ value: 5, label: "Semester 5" }, { value: 6, label: "Semester 6" }];
+  if (yearNum === 4) return [{ value: 7, label: "Semester 7" }, { value: 8, label: "Semester 8" }];
+  return [{ value: 1, label: "Semester 1" }, { value: 2, label: "Semester 2" }];
+};
 
 interface TimetableData {
   branch: string;
   year: number;
   section: string;
+  semester?: number;
   days: string[];
   time_slots: string[];
   timetable: Record<string, Record<string, string>>;
@@ -16,48 +28,58 @@ interface TimetableData {
 
 const GenerateTimetable = () => {
   const [branch, setBranch] = useState("CSE");
-  const [year, setYear] = useState("1st Year");
+  const [year, setYear] = useState("1");
+  const [semester, setSemester] = useState(1);
   const [section, setSection] = useState("A");
   const [timetable, setTimetable] = useState<TimetableData | null>(null);
   const [loading, setLoading] = useState(false);
   const [generating, setGenerating] = useState(false);
 
+  // Get available semesters based on selected year
+  const availableSemesters = getSemestersForYear(year);
+
+  // Reset semester when year changes
+  useEffect(() => {
+    setSemester(availableSemesters[0]?.value || 1);
+  }, [availableSemesters]);
+
   const loadTimetable = useCallback(async () => {
     setLoading(true);
     try {
-      const response = await fetch(`http://localhost:8000/api/timetable/view/${branch}/${parseInt(year)}/${section}`, {
-        headers: {
-          "Authorization": `Bearer ${localStorage.getItem("token")}`
+      const yearNumber = parseInt(year);
+      const response = await api.get("/timetable/view", {
+        params: {
+          branch,
+          year: yearNumber,
+          section,
+          semester
         }
       });
-      const data = await response.json();
-      setTimetable(data);
+      setTimetable(response.data.timetable || null);
     } catch (error) {
       console.error("Error loading timetable:", error);
       toast.error("Failed to load timetable");
     } finally {
       setLoading(false);
     }
-  }, [branch, section, year]);
+  }, [branch, year, section, semester]);
 
   const handleGenerate = useCallback(async () => {
     setGenerating(true);
     try {
-      const response = await fetch("http://localhost:8000/api/timetable/generate", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "Authorization": `Bearer ${localStorage.getItem("token")}`
-        },
-        body: JSON.stringify({ branch, year: parseInt(year), section })
+      const yearNumber = parseInt(year);
+      const response = await api.post("/timetable/generate", {
+        branch,
+        year: yearNumber,
+        section,
+        semester
       });
-      const data = await response.json();
-      
-      if (data.success) {
-        toast.success(data.message);
+
+      if (response.data.success) {
+        toast.success(response.data.message || "Timetable generated successfully");
         await loadTimetable();
       } else {
-        toast.error(data.message || "Generation failed");
+        toast.error(response.data.message || "Generation failed");
       }
     } catch (error) {
       console.error("Generation error:", error);
@@ -65,28 +87,24 @@ const GenerateTimetable = () => {
     } finally {
       setGenerating(false);
     }
-  }, [branch, section, year, loadTimetable]);
+  }, [branch, year, section, semester, loadTimetable]);
 
   useEffect(() => {
-    handleGenerate();
-  }, [handleGenerate]);
+    // Auto-load timetable when component mounts
+    loadTimetable();
+  }, [loadTimetable]);
 
   const exportToExcel = () => {
     if (!timetable) return;
 
-    // Prepare data for Excel
     const excelData: string[][] = [];
-    
-    // Add header row
-    const headerRow: string[] = ["Time / Day", ...timetable.days];
+    const headerRow = ["Time / Day", ...timetable.days];
     excelData.push(headerRow);
     
-    // Add data rows
     for (const timeSlot of timetable.time_slots) {
       const row: string[] = [timeSlot];
       for (const day of timetable.days) {
         let cellValue = timetable.timetable[day][timeSlot];
-        // Clean HTML tags for Excel
         if (cellValue && cellValue.includes('<br>')) {
           cellValue = cellValue.replace('<br>', ' - ');
         }
@@ -95,18 +113,23 @@ const GenerateTimetable = () => {
       excelData.push(row);
     }
     
-    // Create worksheet
     const ws = XLSX.utils.aoa_to_sheet(excelData);
-    
-    // Set column widths
     ws['!cols'] = [{wch:15}, {wch:20}, {wch:20}, {wch:20}, {wch:20}, {wch:20}, {wch:20}];
-    
-    // Create workbook
     const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, `Timetable_${branch}_Year${year}_Section${section}`);
     
-    // Export
-    XLSX.writeFile(wb, `Timetable_${branch}_Year${year}_Section${section}.xlsx`);
+    let sheetName = `TT_${branch}_Y${year}_Sem${semester}_${section}`;
+    if (sheetName.length > 31) {
+      sheetName = sheetName.substring(0, 31);
+    }
+    
+    XLSX.utils.book_append_sheet(wb, ws, sheetName);
+    
+    let fileName = `Timetable_${branch}_Year${year}_Sem${semester}_Section${section}.xlsx`;
+    if (fileName.length > 100) {
+      fileName = `TT_${branch}_Y${year}_S${semester}_${section}.xlsx`;
+    }
+    
+    XLSX.writeFile(wb, fileName);
     toast.success("Timetable exported to Excel!");
   };
 
@@ -124,8 +147,7 @@ const GenerateTimetable = () => {
       <div className="bg-card/60 backdrop-blur-md rounded-xl p-8 border border-border">
         <h2 className="text-2xl font-bold mb-6">⚡ Generate Automatic Timetable</h2>
         
-        {/* Filters - No required fields */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+        <div className="grid grid-cols-1 md:grid-cols-5 gap-4 mb-6">
           <div>
             <label className="block text-sm font-medium mb-1">Branch</label>
             <select 
@@ -136,6 +158,7 @@ const GenerateTimetable = () => {
               {BRANCHES.map(b => <option key={b} value={b}>{b}</option>)}
             </select>
           </div>
+          
           <div>
             <label className="block text-sm font-medium mb-1">Year</label>
             <select 
@@ -143,9 +166,32 @@ const GenerateTimetable = () => {
               onChange={e => setYear(e.target.value)}
               className="w-full px-4 py-2.5 rounded-lg bg-background/50 border border-border focus:ring-2 focus:ring-primary focus:outline-none"
             >
-              {YEARS.map(y => <option key={y} value={y}>{y}</option>)}
+              <option value="1">1st Year</option>
+              <option value="2">2nd Year</option>
+              <option value="3">3rd Year</option>
+              <option value="4">4th Year</option>
             </select>
           </div>
+          
+          <div>
+            <label className="block text-sm font-medium mb-1">Semester</label>
+            <select 
+              value={semester} 
+              onChange={e => setSemester(parseInt(e.target.value))}
+              className="w-full px-4 py-2.5 rounded-lg bg-background/50 border border-border focus:ring-2 focus:ring-primary focus:outline-none"
+            >
+              {availableSemesters.map(sem => (
+                <option key={sem.value} value={sem.value}>{sem.label}</option>
+              ))}
+            </select>
+            <p className="text-xs text-muted-foreground mt-1">
+              {year === "1" && "Year 1 → Semester 1 or 2"}
+              {year === "2" && "Year 2 → Semester 3 or 4"}
+              {year === "3" && "Year 3 → Semester 5 or 6"}
+              {year === "4" && "Year 4 → Semester 7 or 8"}
+            </p>
+          </div>
+          
           <div>
             <label className="block text-sm font-medium mb-1">Section</label>
             <input 
@@ -156,6 +202,7 @@ const GenerateTimetable = () => {
               className="w-full px-4 py-2.5 rounded-lg bg-background/50 border border-border focus:ring-2 focus:ring-primary focus:outline-none"
             />
           </div>
+          
           <div className="flex gap-2 items-end">
             <button 
               onClick={handleGenerate}
@@ -172,7 +219,7 @@ const GenerateTimetable = () => {
                 className="px-6 py-2.5 rounded-lg bg-green-600 text-white font-medium flex items-center gap-2 hover:bg-green-700 transition"
               >
                 <Download className="w-4 h-4" />
-                Export Excel
+                Excel
               </button>
             )}
           </div>
@@ -182,7 +229,7 @@ const GenerateTimetable = () => {
       {timetable && timetable.days?.length > 0 && (
         <div className="bg-card/60 backdrop-blur-md rounded-xl p-8 border border-border overflow-x-auto">
           <h3 className="text-lg font-bold mb-4">
-            {timetable.branch} - {timetable.year} - Section {timetable.section}
+            {timetable.branch} - Year {timetable.year} - Semester {semester} - Section {timetable.section}
           </h3>
           <table className="w-full text-sm border-collapse">
             <thead>
@@ -209,7 +256,12 @@ const GenerateTimetable = () => {
                         ) : (
                           <span className="text-muted-foreground">—</span>
                         )}
-                       </td>
+                        {!isLunch && cell !== '—' && (
+                          <div className="text-xs text-muted-foreground mt-1">
+                            &nbsp;
+                          </div>
+                        )}
+                      </td>
                     );
                   })}
                 </tr>
