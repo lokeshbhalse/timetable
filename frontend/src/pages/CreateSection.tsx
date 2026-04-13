@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { store, BRANCHES, YEARS } from "@/lib/store";
+import { BRANCHES, YEARS } from "@/lib/store";
 import { toast } from "sonner";
 
 const CreateSection = () => {
