@@ -1,4 +1,3 @@
-
 # ============================================
 # Environment Variables
 # ============================================
@@ -7,6 +6,9 @@
 .env.development.local
 .env.test.local
 .env.production.local
+.env.*.local
+*.env
+*.env.local
 
 # ============================================
 # Python
@@ -25,17 +27,10 @@ pythonenv*
 *.pyc
 *.pyo
 *.pyd
-
-# Python Distribution / Packaging
-.Python
-build/
 develop-eggs/
-dist/
 downloads/
 eggs/
 .eggs/
-lib/
-lib64/
 parts/
 sdist/
 var/
@@ -45,22 +40,15 @@ share/python-wheels/
 .installed.cfg
 *.egg
 MANIFEST
-
-# PyInstaller
 *.manifest
 *.spec
-
-# Installer logs
 pip-log.txt
 pip-delete-this-directory.txt
-
-# Unit test / coverage reports
 htmlcov/
 .tox/
 .nox/
 .coverage
 .coverage.*
-.cache
 nosetests.xml
 coverage.xml
 *.cover
@@ -68,84 +56,30 @@ coverage.xml
 .hypothesis/
 .pytest_cache/
 cover/
-
-# Django stuff:
-*.log
 local_settings.py
 db.sqlite3
 db.sqlite3-journal
-
-# Flask stuff:
 instance/
 .webassets-cache
-
-# Scrapy stuff:
 .scrapy
-
-# Sphinx documentation
 docs/_build/
-
-# PyBuilder
 .pybuilder/
 target/
-
-# Jupyter Notebook
 .ipynb_checkpoints
-
-# IPython
 profile_default/
 ipython_config.py
-
-# pyenv
 .python-version
-
-# pipenv
 Pipfile.lock
-
-# poetry
 poetry.lock
-
-# pdm
 .pdm.toml
-
-# PEP 582
 __pypackages__/
-
-# Celery stuff
 celerybeat-schedule
 celerybeat.pid
-
-# SageMath parsed files
 *.sage.py
-
-# Environments
-.env
-.venv
-env/
-venv/
-ENV/
-env.bak/
-venv.bak/
-
-# Spyder project settings
-.spyderproject
-.spyproject
-
-# Rope project settings
-.ropeproject
-
-# mkdocs documentation
-/site
-
-# mypy
 .mypy_cache/
 .dmypy.json
 dmypy.json
-
-# Pyre type checker
 .pyre/
-
-# pytype static type analyzer
 .pytype/
 
 # ============================================
@@ -155,8 +89,6 @@ dmypy.json
 *.sqlite
 *.sqlite3
 *.db-journal
-*.sql
-*.sql-journal
 sgsits_timetable.db
 timetable.db
 test_timetable.db
@@ -170,49 +102,21 @@ yarn-debug.log*
 yarn-error.log*
 .pnpm-debug.log*
 lerna-debug.log*
-
-# Frontend build outputs
-dist/
 dist-ssr/
-*.local
-
-# Editor directories and files
-.vscode/
-.idea/
-.DS_Store
-*.suo
-*.ntvs*
-*.njsproj
-*.sln
-*.sw?
+*.tsbuildinfo
+.eslintcache
+.prettiercache
 
 # React / Vite
-build/
-*.tsbuildinfo
+frontend/.vite/
+frontend/node_modules/.vite/
 
 # Testing
-coverage/
 .nyc_output/
-*.test.js
-*.spec.js
-*.test.ts
-*.spec.ts
-vitest.config.ts.timestamp-*
 
 # ============================================
-# Environment & Secrets
-# ============================================
-.env
-.env.local
-.env.development.local
-.env.test.local
-.env.production.local
-.env.*.local
-*.env
-*.env.local
-.env file
-
 # Secrets
+# ============================================
 *.pem
 *.key
 *.crt
@@ -224,11 +128,6 @@ vitest.config.ts.timestamp-*
 # ============================================
 logs/
 *.log
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
-lerna-debug.log*
-.pnpm-debug.log*
 
 # ============================================
 # OS generated files
@@ -247,30 +146,17 @@ Thumbs.db
 *.swo
 *~
 ~$*
-
-# Windows
-Thumbs.db
-ehthumbs.db
 Desktop.ini
 $RECYCLE.BIN/
-
-# Linux
 .directory
 *.directory
-
-# macOS
 .AppleDouble
 .LSOverride
-._*
-
-# Icon must end with two \r
 Icon
-
 
 # ============================================
 # Project Specific
 # ============================================
-# Timetable generated files
 csIsem.txt
 csIIIsem.txt
 csVIIsem.txt
@@ -281,7 +167,6 @@ eeVsem.txt
 meIIIsem.txt
 meVIIsem.txt
 meVsem.txt
-course_file.txt
 room_file.txt
 slot_file.txt
 input_graph.txt
@@ -297,46 +182,22 @@ a.exe
 a.out
 tt.exe
 new.exe
-tt
-new
 
 # Temporary files
 temp
-*.tmp
-*.temp
 *.cache
-
-# Python compiled files
-*.pyc
-__pycache__/
-
-# Backup files
-*.backup
-*.old
-*.orig
+.cache
+.cache-loader
 
 # ============================================
 # IDE / Editor specific
 # ============================================
-# VSCode
 .vscode/
 *.code-workspace
-
-# WebStorm
 .idea/
 *.iml
-
-# Sublime Text
 *.sublime-project
 *.sublime-workspace
-
-# Vim
-*.swp
-*.swo
-*~
-
-# Emacs
-*~
 \#*\#
 .\#*
 
@@ -349,67 +210,21 @@ __pycache__/
 docker-compose.override.yml
 
 # ============================================
-# Package managers
+# Vercel
 # ============================================
-# NPM
-package-lock.json
-npm-shrinkwrap.json
-
-# Yarn
-yarn.lock
-.yarn-integrity
-
-# PNPM
-pnpm-lock.yaml
-
-# Bun
-bun.lock
-bun.lockb
+.vercel
 
 # ============================================
 # Build outputs
 # ============================================
-# Python build
-*.egg-info/
-*.egg
 build/
-dist/
 develop-eggs/
 downloads/
 eggs/
 .eggs/
 lib/
 lib64/
-parts/
 sdist/
-var/
 wheels/
 *.whl
-
-# Frontend build
-frontend/dist/
-frontend/build/
-frontend/.vite/
-frontend/node_modules/.vite/
-
-# ============================================
-# Miscellaneous
-# ============================================
-*.swp
-*.swo
-*~
-.DS_Store
-.idea
-*.log
-*.bak
-*.cache
-*.tmp
-.temp
-.cache
-.cache-loader
-coverage/
-.nyc_output/
-.eslintcache
-.prettiercache
-*.tsbuildinfo
-.vercel
+*.egg-info/
