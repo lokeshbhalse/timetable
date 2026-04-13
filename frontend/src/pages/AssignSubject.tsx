@@ -19,6 +19,12 @@ interface TeacherResponse {
   email: string;
 }
 
+// Maps year label ("1st Year", "2nd Year", ...) to integer (1, 2, ...)
+const yearLabelToInt = (yearLabel: string): number => {
+  const idx = YEARS.indexOf(yearLabel);
+  return idx >= 0 ? idx + 1 : 1;
+};
+
 const AssignSubject = () => {
   const [branch, setBranch] = useState("");
   const [year, setYear] = useState("1st Year");
@@ -33,8 +39,8 @@ const AssignSubject = () => {
       const response = await api.get("/admin/subjects", {
         params: {
           branch,
-          year: parseInt(year)
-        }
+          year: yearLabelToInt(year),
+        },
       });
       setSubjects(response.data.subjects || []);
     } catch (error) {
@@ -58,18 +64,18 @@ const AssignSubject = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!branch || !subjectId || !teacherId || !section) { 
-      toast.error("All fields are required"); 
-      return; 
+    if (!branch || !subjectId || !teacherId || !section) {
+      toast.error("All fields are required");
+      return;
     }
-    
+
     try {
-      const response = await api.post("/admin/subjects/assign", { 
-        subject_id: parseInt(subjectId), 
-        teacher_id: parseInt(teacherId), 
+      const response = await api.post("/admin/subjects/assign", {
+        subject_id: parseInt(subjectId),
+        teacher_id: parseInt(teacherId),
         section,
         branch,
-        year: parseInt(year)
+        year: yearLabelToInt(year),
       });
       const data = response.data;
       if (data.success) {
@@ -92,30 +98,38 @@ const AssignSubject = () => {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
             <label className="block text-sm font-medium mb-1">Branch *</label>
-            <select 
-              value={branch} 
-              onChange={e => setBranch(e.target.value)}
+            <select
+              value={branch}
+              onChange={(e) => setBranch(e.target.value)}
               className="w-full px-4 py-2.5 rounded-lg bg-background/50 border border-border focus:ring-2 focus:ring-primary focus:outline-none"
             >
               <option value="">Select Branch</option>
-              {BRANCHES.map((b, idx) => <option key={`branch-${idx}`} value={b}>{b}</option>)}
+              {BRANCHES.map((b, idx) => (
+                <option key={`branch-${idx}`} value={b}>
+                  {b}
+                </option>
+              ))}
             </select>
           </div>
           <div>
             <label className="block text-sm font-medium mb-1">Year *</label>
-            <select 
-              value={year} 
-              onChange={e => setYear(e.target.value)}
+            <select
+              value={year}
+              onChange={(e) => setYear(e.target.value)}
               className="w-full px-4 py-2.5 rounded-lg bg-background/50 border border-border focus:ring-2 focus:ring-primary focus:outline-none"
             >
-              {YEARS.map((y, idx) => <option key={`year-${idx}`} value={y}>{y}</option>)}
+              {YEARS.map((y, idx) => (
+                <option key={`year-${idx}`} value={y}>
+                  {y}
+                </option>
+              ))}
             </select>
           </div>
           <div>
             <label className="block text-sm font-medium mb-1">Subject *</label>
-            <select 
-              value={subjectId} 
-              onChange={e => setSubjectId(e.target.value)}
+            <select
+              value={subjectId}
+              onChange={(e) => setSubjectId(e.target.value)}
               className="w-full px-4 py-2.5 rounded-lg bg-background/50 border border-border focus:ring-2 focus:ring-primary focus:outline-none"
             >
               <option value="">Select Subject</option>
@@ -128,9 +142,9 @@ const AssignSubject = () => {
           </div>
           <div>
             <label className="block text-sm font-medium mb-1">Teacher *</label>
-            <select 
-              value={teacherId} 
-              onChange={e => setTeacherId(e.target.value)}
+            <select
+              value={teacherId}
+              onChange={(e) => setTeacherId(e.target.value)}
               className="w-full px-4 py-2.5 rounded-lg bg-background/50 border border-border focus:ring-2 focus:ring-primary focus:outline-none"
             >
               <option value="">Select Teacher</option>
@@ -144,14 +158,18 @@ const AssignSubject = () => {
         </div>
         <div>
           <label className="block text-sm font-medium mb-1">Section *</label>
-          <input 
-            value={section} 
-            onChange={e => setSection(e.target.value)} 
-            placeholder="e.g., A, B, C" 
-            className="w-full px-4 py-2.5 rounded-lg bg-background/50 border border-border focus:ring-2 focus:ring-primary focus:outline-none" 
+          <input
+            value={section}
+            onChange={(e) => setSection(e.target.value)}
+            placeholder="e.g., A, B, C"
+            className="w-full px-4 py-2.5 rounded-lg bg-background/50 border border-border focus:ring-2 focus:ring-primary focus:outline-none"
           />
         </div>
-        <button type="submit" className="px-6 py-2.5 rounded-lg text-primary-foreground font-medium" style={{ background: "var(--gradient-nebula)" }}>
+        <button
+          type="submit"
+          className="px-6 py-2.5 rounded-lg text-primary-foreground font-medium"
+          style={{ background: "var(--gradient-nebula)" }}
+        >
           🔗 Assign Subject
         </button>
       </form>

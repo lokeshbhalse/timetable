@@ -55,7 +55,7 @@ const GenerateTimetable = () => {
           semester
         }
       });
-      setTimetable(response.data.timetable || null);
+     setTimetable(response.data || null);
     } catch (error) {
       console.error("Error loading timetable:", error);
       toast.error("Failed to load timetable");
